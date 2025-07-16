@@ -495,7 +495,10 @@ while True:
         rgb.blue.toggle()
 
 
-    uart.write(package_blobs_data(ctr.work_mode))
+    #uart.write(package_blobs_data(ctr.work_mode))
+    data = package_blobs_data(ctr.work_mode)
+    uart.write(data)
+    print(' '.join('{:02X}'.format(b) for b in data))
     uart_data_read()
 #__________________________________________________________________
     #计算fps
