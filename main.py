@@ -449,7 +449,7 @@ def found_num():
         img.draw_string(target.x, target.y, "Num:%d" % target.state, color=(255, 255, 255), scale=2)
 
 
-ctr.work_mode=0x08
+ctr.work_mode=0x05
 last_ticks=0
 ticks=0
 ticks_delta=0;
@@ -476,7 +476,7 @@ while True:
         opv_find_april_tag()
         rgb.blue.off()
 
-    elif ctr.work_mode==0x08:#预留模式1,数字识别
+    elif ctr.work_mode==0x05:#预留模式1,数字识别
         found_num()
         rgb.blue.toggle()
 
