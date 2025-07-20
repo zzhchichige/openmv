@@ -329,21 +329,24 @@ def opv_find_april_tag():
     apriltag_area=0
     apriltag_dis=IMAGE_DIS_MAX
     target.flag = 0
-    for tag in img.find_apriltags(): # defaults to TAG36H11 without "families".
-        img.draw_rectangle(tag.rect(), color = (255, 0, 0))
-        b=(tag.rect()[2]/(abs(math.sin(tag.rotation()))+abs(math.cos(tag.rotation()))))
-        #print(tag.rect()[2],b*b)
-        #保存最大像素面积得apritag信息
-        apriltag_dis_tmp=math.sqrt((tag.cx()-80)*(tag.cx()-80)+(tag.cy()-60)*(tag.cy()-60))
-        apriltag_area_tmp=tag.w()*tag.h()
-        if apriltag_dis>apriltag_dis_tmp:
-            apriltag_area=tag.w()*tag.h()
-            target.x = tag.cx()
-            target.y = tag.cy()
-            target.apriltag_id=tag.id()
-            target.pixel=int(b*b)#apriltag_area
-            apriltag_dis=apriltag_dis_tmp
+    for tag in img.find_apriltags():  # defaults to TAG36H11 without "families".
+        img.draw_rectangle(tag.rect, color=(255, 0, 0))
+
+        b = tag.rect[2] / (abs(math.sin(tag.rotation)) + abs(math.cos(tag.rotation)))
+
+        # 保存最大像素面积的apriltag信息
+        apriltag_dis_tmp = math.sqrt((tag.cx - 80) ** 2 + (tag.cy - 60) ** 2)
+        apriltag_area_tmp = tag.w * tag.h
+
+        if apriltag_dis > apriltag_dis_tmp:
+            apriltag_area = tag.w * tag.h
+            target.x = tag.cx
+            target.y = tag.cy
+            target.apriltag_id = tag.id
+            target.pixel = int(b * b)  # 使用int包裹即可
+            apriltag_dis = apriltag_dis_tmp
             target.flag = 1
+
     if target.flag==1:
         img.draw_cross(target.x,target.y, color=127, size = 15)
 #        img.draw_circle(target.x,target.y, 15, color = 127)
