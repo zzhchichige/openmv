@@ -6,6 +6,18 @@ from pyb import LED,Timer,UART
 import  os, ml, uos, gc
 from ulab import numpy as np
 
+import sensor, image, time, math, struct
+import json
+from pyb import LED,Timer
+import find_a,find_start_point,find_pole,utils,find_pole
+import find_code
+import Message
+import find_line
+import video
+import mjpeg, pyb
+
+
+
 sensor.reset()                      # Reset and initialize the sensor.
 sensor.set_pixformat(sensor.RGB565) # Set pixel format to RGB565 (or GRAYSCALE)
 sensor.set_framesize(sensor.QQVGA)  # Set frame size to QVGA (320x240)
@@ -15,7 +27,9 @@ sensor.set_auto_whitebal(False)
 clock = time.clock()                # Create a clock object to track the FPS.
 #sensor.set_auto_exposure(True, exposure_us=5000) # 设置自动曝光sensor.get_exposure_us()
 
-
+startPoint_threshold =(2, 26, -33, 16, -22, 31)
+CROSS_MIN=10
+CROSS_MAX=90
 uart=UART(3,256000)
 THRESHOLD = (0,100) # Grayscale threshold for dark things... (5, 70, -23, 15, -57, 0)(18, 100, 31, -24, -21, 70)
 IMAGE_WIDTH=sensor.snapshot().width()
