@@ -466,7 +466,131 @@ def found_num():
         img.draw_string(target.x, target.y, "Num:%d" % target.state, color=(255, 255, 255), scale=2)
 
 
-ctr.work_mode=0x05
+
+def find_crossShape(img, ROI):
+    result = False
+    result_point = (-1, -1)
+    if ROI is None:
+        return result, result_point
+    lines = img.find_lines(roi=ROI, theta_margin=25, rho_margin=25)
+    line_num = len(lines)
+    for i in range(line_num - 1):
+        for j in range(i, line_num):
+            angle = utils.calculate_angle(lines[i], lines[j])
+            if not (83 <= angle <= 90):
+                continue
+            intersect_pt = utils.CalculateIntersection(lines[i], lines[j])
+            if intersect_pt is None:
+                continue
+            x, y = intersect_pt
+            if not (0 <= x < utils.IMG_WIDTH and 0 <= y < utils.IMG_HEIGHT):
+                continue
+            result_point = (x, y)
+            return True, result_point
+    return False, result_point
+
+
+
+
+def opv_find_cross_blob():
+    img = sensor.snapshot()
+    target.img_width = IMAGE_WIDTH
+    target.img_height = IMAGE_HEIGHT
+    target.flag = 0
+    best_blob = None
+    last_sub = 2.0
+
+    blobs = img.find_blobs([startPoint_threshold], pixels_threshold=3, area_threshold=3, merge=True, margin=5)
+    for blob in blobs:
+        width = blob.w()
+        height = blob.h()
+        rate = width / height
+        size_limit = width > CROSS_MIN and width < CROSS_MAX and height > CROSS_MIN and height < CROSS_MAX
+        sub = abs(1.0 - rate)
+
+        if last_sub > sub and size_limit:
+            last_sub = sub
+            best_blob = blob
+
+    if best_blob is not None:
+        cross_test_result, point = find_crossShape(img, best_blob.rect())
+        if cross_test_result:
+            img.draw_rectangle(best_blob.rect())
+            img.draw_cross(point[0], point[1], 5, color=[0, 255, 0])
+            target.flag = 1
+            target.x = point[0]
+            target.y = point[1]
+            target.pixel = best_blob.pixels()
+
+
+def find_AShape(img,blob):
+    result=False
+    if(blob==None):
+        return result
+    ROI=(blob.rect())
+    lines=img.find_lines(roi=ROI,x_stride=1,y_stride=1, theta_margin = 25, rho_margin = 25)
+    line_num = len(lines)
+    for i in range(line_num -1):
+            for j in range(i, line_num):
+                # 判断两个直线之间的夹角是否为直角
+                angle = utils.calculate_angle(lines[i], lines[j])
+                # 判断角度是否在阈值范围内
+                if not(angle >= 20 and angle <=  50):
+                    continue#不在区间内
+                intersect_pt = utils.CalculateIntersection(lines[i], lines[j])
+                if intersect_pt is None:
+                    continue
+                #有交点
+                x, y = intersect_pt
+                #不在图像范围内
+                if not(x >= 0 and x < utils.IMG_WIDTH and y >= 0 and y < utils.IMG_HEIGHT):
+                    # 交点如果没有在画面中
+                    continue
+                result_point=(x,y)
+                return True
+    return result
+
+
+Green_threshold=(36, 75, -79, -36, -12, 55)
+A_threshold=(0, 30, -47, 0, 0, 39)
+def opv_find_A_blob():
+    img = sensor.snapshot()
+    target.img_width = IMAGE_WIDTH
+    target.img_height = IMAGE_HEIGHT
+    target.flag = 0
+    max_blob = None
+    max_area = 0
+
+    blobs = img.find_blobs([A_threshold], merge=True)
+    for blob in blobs:
+        width = blob.w()
+        height = blob.h()
+        short_side = min(width, height)
+        long_side = max(width, height)
+        rate = short_side / long_side
+        area = short_side * long_side
+
+        side_limit = (8 < short_side < 68) and (13 < long_side < 68)
+        if side_limit and area > max_area and find_AShape(img, blob):
+            max_area = area
+            max_blob = blob
+
+    if max_blob is not None:
+        img.draw_rectangle(max_blob.rect())
+        target.flag = 1
+        target.x = max_blob.cx()
+        target.y = max_blob.cy()
+        target.pixel = max_blob.pixels()
+        target.reserved1 = max_blob.w() >> 8
+        target.reserved2 = max_blob.w()
+        target.reserved3 = 1  # 可以用1代表A字颜色或类别
+        target.reserved4 = 4  # 自定义4代表A字形状
+        # 你可以在这里加绘制十字交点或其他
+    else:
+        target.flag = 0
+
+
+ctr.work_mode=0x06
 last_ticks=0
 ticks=0
 ticks_delta=0;
@@ -474,7 +598,7 @@ while True:
     clock.tick()
 
     if ctr.work_mode==0x00:#空闲模式
-        img=sensor.snapshot()
+        opv_find_cross_blob()
         rgb.blue.toggle()
 
     elif ctr.work_mode==0x01:#色块模式
@@ -498,7 +622,7 @@ while True:
         rgb.blue.toggle()
 
     elif ctr.work_mode==0x06:#预留模式2
-        img=sensor.snapshot()
+        opv_find_A_blob()
         rgb.blue.toggle()
     elif ctr.work_mode==0x07:#识别底部颜色，用于2021年国赛植保飞行器
         find_crops()
