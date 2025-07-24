@@ -590,7 +590,112 @@ def opv_find_A_blob():
         target.flag = 0
 
 
-ctr.work_mode=0x06
+
+thresholds_red =[(10, 100, 30, 127, -30, 127)]
+thresholds_blue=[(15, 50, 40, 80, -127, 0)]
+thresholds_r_b=[(10, 100, 30, 127, -30, 127),
+                 (10, 50, 15, 40, -70, -40)]
+
+def opv_find_color_blobs_max_only():
+    img = sensor.snapshot()
+    target.flag = 0
+    target.img_width = IMAGE_WIDTH
+    target.img_height = IMAGE_HEIGHT
+    max_area = 0
+    max_blob = None
+    max_type_id = 0
+    max_color_id = 0
+
+    blobs = img.find_blobs(thresholds_r_b, pixels_threshold=50, merge=True, margin=10)
+
+    for blob in blobs:
+        type_id = 0
+        color_id = 0
+
+        # 颜色判断
+        if blob.code() == 1:
+            color_id = 1
+        elif blob.code() == 2:
+            color_id = 2
+        else:
+            continue
+
+        # 圆形检测（优先）
+        roi = (blob.x(), blob.y(), blob.w(), blob.h())
+        circles = img.find_circles(
+            roi=roi,
+            threshold=1800,
+            x_margin=20, y_margin=20, r_margin=20,
+            r_min=2, r_max=100, r_step=2
+        )
+
+        found_circle = False
+        for c in circles:
+            if (blob.x() <= c.x() <= blob.x() + blob.w() and
+                blob.y() <= c.y() <= blob.y() + blob.h()):
+                type_id = 1
+                found_circle = True
+                break
+
+        # 不是圆形时，判断矩形和三角形
+        if not found_circle:
+            dens = blob.density()
+            if dens > 0.8:
+                type_id = 2
+            elif dens > 0.45:
+                type_id = 3
+            else:
+                continue  # 忽略噪声
+
+        # 找到最大面积目标
+        area = blob.pixels()
+        if area > max_area:
+            max_area = area
+            max_blob = blob
+            max_type_id = type_id
+            max_color_id = color_id
+
+    # 如果检测到有效目标，则打印并更新target
+    if max_blob:
+        # 画图示
+        if max_type_id == 1:
+            img.draw_circle(max_blob.cx(), max_blob.cy(), int((max_blob.w() + max_blob.h()) / 4), color=(0, 255, 0))
+            shape_str = "圆形"
+        elif max_type_id == 2:
+            img.draw_rectangle(max_blob.rect(), color=(255, 0, 0))
+            shape_str = "矩形"
+        elif max_type_id == 3:
+            img.draw_cross(max_blob.cx(), max_blob.cy(), color=(0, 0, 255))
+            shape_str = "三角形"
+        else:
+            shape_str = "未知"
+
+        color_str = "红色" if max_color_id == 1 else "蓝色"
+
+        print(f"颜色: {color_str}, 形状: {shape_str}, 中心:({max_blob.cx()},{max_blob.cy()}), 面积: {max_area:.0f}")
+
+        target.x = max_blob.cx()
+        target.y = max_blob.cy()
+        target.pixel = max_area
+        target.reserved3 = max_color_id
+        target.reserved4 = max_type_id
+        target.flag = 1
+    else:
+        print("未识别目标")
+        target.flag = 0
+
+
+
+
+
+
+
+
+
+
+
+
+ctr.work_mode=0x10
 last_ticks=0
 ticks=0
 ticks_delta=0;
@@ -630,8 +735,9 @@ while True:
     elif ctr.work_mode==0x0B:#识别底部颜色，用于2021年国赛植保飞行器
         find_crops()
         rgb.blue.toggle()
-
-
+    elif ctr.work_mode==0x10:
+        opv_find_color_blobs_max_only()
+        rgb.blue.toggle()
     else:
         rgb.blue.toggle()
 
