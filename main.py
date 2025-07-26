@@ -178,7 +178,7 @@ def package_blobs_data(mode):
                    target.y>>8,target.y,        #将整形数据拆分成两个8位
                    target.pixel>>8,target.pixel,#将整形数据拆分成两个8位
                    target.flag,                 #数据有效标志位
-                   target.state,                #数据有效标志位
+                   target.state,                #数据有效标志位00
                    target.angle>>8,target.angle,#将整形数据拆分成两个8位
                    target.distance>>8,target.distance,#将整形数据拆分成两个8位
                    target.apriltag_id>>8,target.apriltag_id,#将整形数据拆分成两个8位
@@ -624,7 +624,7 @@ def opv_find_color_blobs_max_only():
         roi = (blob.x(), blob.y(), blob.w(), blob.h())
         circles = img.find_circles(
             roi=roi,
-            threshold=1800,
+            threshold=2000,
             x_margin=20, y_margin=20, r_margin=20,
             r_min=2, r_max=100, r_step=2
         )
@@ -685,6 +685,62 @@ def opv_find_color_blobs_max_only():
         target.flag = 0
 
 
+def barcode_name(code):
+    if(code.type() == image.EAN2):
+        return "EAN2"
+    if(code.type() == image.EAN5):
+        return "EAN5"
+    if(code.type() == image.EAN8):
+        return "EAN8"
+    if(code.type() == image.UPCE):
+        return "UPCE"
+    if(code.type() == image.ISBN10):
+        return "ISBN10"
+    if(code.type() == image.UPCA):
+        return "UPCA"
+    if(code.type() == image.EAN13):
+        return "EAN13"
+    if(code.type() == image.ISBN13):
+        return "ISBN13"
+    if(code.type() == image.I25):
+        return "I25"
+    if(code.type() == image.DATABAR):
+        return "DATABAR"
+    if(code.type() == image.DATABAR_EXP):
+        return "DATABAR_EXP"
+    if(code.type() == image.CODABAR):
+        return "CODABAR"
+    if(code.type() == image.CODE39):
+        return "CODE39"
+    if(code.type() == image.PDF417):
+        return "PDF417"
+    if(code.type() == image.CODE93):
+        return "CODE93"
+    if(code.type() == image.CODE128):
+        return "CODE128"
+
+
+def find_barcode():
+    img=sensor.snapshot()
+    target.img_width=IMAGE_WIDTH
+    target.img_height=IMAGE_HEIGHT
+    apriltag_area=0
+    apriltag_dis=IMAGE_DIS_MAX
+    target.flag = 0
+    codes = img.find_barcodes()
+    for code in codes:
+        img.draw_rectangle(code.rect())
+        print_args = (barcode_name(code), code.payload(), (180 * code.rotation()) / math.pi, code.quality(), clock.fps())
+        #print("Barcode %s, Payload \"%s\", rotation %f (degrees), quality %d, FPS %f" % print_args)
+        (x,y,w,h)=code.rect()
+        target.x =int(x)
+        target.y =int(y)
+        target.apriltag_id=int(code.payload())
+        target.pixel=0
+        target.flag = 1
+    if target.flag==1:
+        img.draw_cross(target.x,target.y, color=127, size = 15)
+        print("id:", target.apriltag_id)
 
 
 
@@ -694,8 +750,7 @@ def opv_find_color_blobs_max_only():
 
 
 
-
-ctr.work_mode=0x10
+ctr.work_mode=0x06
 last_ticks=0
 ticks=0
 ticks_delta=0;
@@ -727,7 +782,7 @@ while True:
         rgb.blue.toggle()
 
     elif ctr.work_mode==0x06:#预留模式2
-        opv_find_A_blob()
+        find_barcode()
         rgb.blue.toggle()
     elif ctr.work_mode==0x07:#识别底部颜色，用于2021年国赛植保飞行器
         find_crops()
